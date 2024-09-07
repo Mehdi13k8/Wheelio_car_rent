@@ -1,4 +1,3 @@
-// src/app/profile/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -10,6 +9,9 @@ export default function ProfilePage() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [uploadFile, setUploadFile] = useState(null); // State for selected file
+  const [uploadMessage, setUploadMessage] = useState(""); // Message for upload feedback
+  const [uploadedFiles, setUploadedFiles] = useState([]); // State for uploaded files
   const router = useRouter();
 
   // Verify token and fetch user data
@@ -30,6 +32,7 @@ export default function ProfilePage() {
 
         if (response.status === 200) {
           setUser(response.data);
+          setLoading(false);
         } else {
           localStorage.removeItem("token");
           router.push("/login");
@@ -44,60 +47,110 @@ export default function ProfilePage() {
     verifyToken();
   }, [router]);
 
-  // Fetch reservations for the logged-in user
+  // Fetch uploaded files from the backend
   useEffect(() => {
-    const fetchReservations = async () => {
+    const fetchUploadedFiles = async () => {
+      const token = localStorage.getItem("token");
       try {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-          setError("You need to log in to view your reservations.");
-          setLoading(false);
-          return;
-        }
-
         const response = await axios.get(
-          "http://localhost:3001/reservations/my-reservations",
+          "http://localhost:3001/users/uploaded-files",
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }
         );
-
-        setReservations(response.data);
-        setLoading(false);
+        if (response.status === 200) {
+          setUploadedFiles(response.data.files);
+        }
       } catch (err) {
-        console.error("Error fetching reservations", err);
-        setError("Failed to fetch reservations. Please try again.");
-        setLoading(false);
+        console.error("Error fetching uploaded files", err);
+        setError("Failed to fetch uploaded files. Please try again.");
       }
     };
 
-    fetchReservations();
+    fetchUploadedFiles();
   }, []);
 
-  // Handle reservation deletion
-  const handleDeleteReservation = async (reservationId) => {
-    const token = localStorage.getItem("token");
+  // Handle file selection
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (
+      file &&
+      (file.type === "application/pdf" || file.type === "image/jpeg")
+    ) {
+      setUploadFile(file);
+      setUploadMessage("");
+    } else {
+      setUploadMessage("Only PDF and JPEG files are allowed.");
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async () => {
+    if (!uploadFile) {
+      setUploadMessage("Please select a valid PDF or JPEG file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", uploadFile);
 
     try {
-      const response = await axios.delete(
-        `http://localhost:3001/reservations/${reservationId}`,
+      const token = localStorage.getItem("token");
+
+      const response = await axios.post(
+        "http://localhost:3001/users/upload",
+        formData,
         {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      if (response.status === 200 || response.status === 201) {
+        setUploadMessage("File uploaded successfully.");
+        setUploadedFiles((prev) => [...prev, response.data.file]); // Add the uploaded file to the list
+      } else {
+        console.log(response);
+        setUploadMessage("Failed to upload the file.");
+      }
+    } catch (err) {
+      console.error("Error uploading file", err.response);
+      setUploadMessage(
+        "An error occurred during the upload. Please try again."
+      );
+    }
+  };
+
+  const handleDownloadFile = async (filename) => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await axios.get(
+        `http://localhost:3001/users/download/${filename}`,
+        {
+          responseType: "blob", // Important for streaming binary data
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
-      if (response.status === 200) {
-        // Remove the deleted reservation from the list
-        setReservations((prev) => prev.filter((res) => res._id !== reservationId));
-      }
-    } catch (err) {
-      console.error("Error deleting reservation", err);
-      setError("Failed to delete reservation. Please try again.");
+      // Create a link element and trigger a download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename); // Set file name
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup the link after download
+      link.remove();
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      setError("Failed to download file.");
     }
   };
 
@@ -106,59 +159,90 @@ export default function ProfilePage() {
   if (error) return <div>{error}</div>;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h2 className="text-2xl font-bold mb-6">Profile Information</h2>
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      <h2 className="text-3xl font-bold mb-8 text-center">
+        Profile Information
+      </h2>
 
       {user && (
-        <div>
-          <p>
+        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <p className="text-lg">
             <strong>Name:</strong> {user.name}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>Email:</strong> {user.email}
           </p>
-          <p>
+          <p className="text-lg">
             <strong>Admin:</strong> {user.isAdmin ? "Yes" : "No"}
           </p>
         </div>
       )}
 
-      <h3 className="text-xl font-bold mt-8 mb-4">My Reservations</h3>
-      {reservations.length > 0 ? (
-        <ul>
-          {reservations.map((reservation) => (
-            <li key={reservation._id} className="mb-4 border p-4 rounded">
-              <strong>Car:</strong> {reservation.car.name} - {reservation.car.brand}
-              <br />
-              <strong>Dates:</strong> {new Date(reservation.startDate).toLocaleDateString()} to{" "}
-              {new Date(reservation.endDate).toLocaleDateString()}
-              <br />
-              <strong>Total Price:</strong> {reservation.totalPrice}€
-              <br />
+      <h3 className="text-2xl font-bold mt-8 mb-4">Uploaded Files</h3>
+
+      {uploadedFiles.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {uploadedFiles.map((file) => (
+            <div
+              key={file.filename}
+              className="border p-4 rounded-lg flex flex-col items-center justify-center bg-gray-100"
+            >
+              {file.mimetype === "application/pdf" ? (
+                <img
+                  // svg icon from public folder
+                  src="/pdf-icon.svg"
+                  alt="PDF Icon"
+                  className="w-12 h-12 mb-2"
+                />
+              ) : (
+                <img
+                  src="/jpeg-icon.svg"
+                  alt="JPEG Icon"
+                  className="w-12 h-12 mb-2"
+                />
+              )}
+              <p className="text-sm text-center break-words">{file.filename}</p>
               <button
-                onClick={() => handleDeleteReservation(reservation._id)}
-                className="mt-2 bg-red-500 text-white py-1 px-3 rounded hover:bg-red-600"
+                onClick={() => {
+                  handleDownloadFile(file.filename);
+                }}
               >
-                Delete Reservation
+                Download
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : (
-        <p>No reservations found.</p>
+        <p>No files uploaded yet.</p>
       )}
 
-      <button
+      <h3 className="text-2xl font-bold mt-8 mb-4">Upload File</h3>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <input
+          type="file"
+          accept=".pdf, .jpeg"
+          onChange={handleFileChange}
+          className="block mb-4"
+        />
+        <button
+          onClick={handleFileUpload}
+          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+        >
+          Upload File
+        </button>
+
+        {uploadMessage && <p className="mt-4 text-red-500">{uploadMessage}</p>}
+      </div>
+
+      {/* <button
         onClick={() => {
           localStorage.removeItem("token");
           router.push("/login");
-          router.refresh();
-          window.location.reload();
         }}
-        className="mt-4 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600"
+        className="mt-8 bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600"
       >
         Log Out
-      </button>
+      </button> */}
     </div>
   );
 }

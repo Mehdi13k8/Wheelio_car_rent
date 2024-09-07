@@ -93,7 +93,6 @@ export default function ReservationPage() {
       console.log("response ==>", response);
 
       if (response.status === 201) {
-        return;
         setReservationSuccess(true);
         setTimeout(() => {
           router.push("/"); // Redirect to home after successful reservation

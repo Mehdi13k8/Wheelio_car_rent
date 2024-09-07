@@ -16,6 +16,24 @@ export class User {
 
   @Prop({ default: false })
   isAdmin: boolean;
+
+  @Prop({
+    type: [
+      {
+        filename: String,
+        path: String,
+        mimetype: String,
+        size: Number,
+      },
+    ],
+    default: [],
+  })
+  uploadedFiles: {
+    filename: string;
+    path: string;
+    mimetype: string;
+    size: number;
+  }[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

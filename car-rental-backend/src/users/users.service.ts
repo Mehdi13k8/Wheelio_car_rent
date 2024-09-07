@@ -5,6 +5,8 @@ import { Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { faker } from '@faker-js/faker';
+import * as fs from 'fs';
+import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
 
 @Injectable()
 export class UsersService {
@@ -62,5 +64,34 @@ export class UsersService {
     }
 
     return this.userModel.insertMany(users);
+  }
+
+  // Save file information in the user's profile
+  async saveUploadedFile(userId: string, file: Express.Multer.File) {
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Add file information to the user profile
+    user.uploadedFiles = user.uploadedFiles || [];
+    user.uploadedFiles.push({
+      filename: file.filename,
+      path: file.path, // Path where the file is saved by Multer
+      mimetype: file.mimetype,
+      size: file.size,
+    });
+
+    return user.save();
+  }
+
+  // Add a method to retrieve the user's uploaded files
+  async getUploadedFiles(userId: string) {
+    const user = await this.userModel.findById(userId).select('uploadedFiles');
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    return user.uploadedFiles;
   }
 }
