@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { User, UserDocument } from './user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -93,5 +93,21 @@ export class UsersService {
       throw new BadRequestException('User not found');
     }
     return user.uploadedFiles;
+  }
+
+  // Remove file from user's uploaded files list
+  async removeUploadedFile(userId: string, filename: string): Promise<void> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Remove the file from the user's uploaded files array
+    user.uploadedFiles = user.uploadedFiles.filter(
+      (file) => file.filename !== filename,
+    );
+
+    // Save the updated user document
+    await user.save();
   }
 }

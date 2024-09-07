@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -166,5 +167,40 @@ export class UsersController {
     });
 
     return new StreamableFile(file);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('uploaded-files/:filename')
+  async deleteUploadedFile(
+    @Param('filename') filename: string,
+    @Request() req: any,
+  ) {
+    const userId = req.user._id;
+
+    // Fetch the user and check if they uploaded the file
+    const user = await this.usersService.findById(userId);
+    const uploadedFile = user.uploadedFiles.find(
+      (file) => file.filename === filename,
+    );
+
+    if (!uploadedFile) {
+      throw new UnauthorizedException('You do not have access to this file.');
+    }
+
+    // Construct the full file path
+    const filePath = path.join(__dirname, '..', '..', 'uploads', filename);
+
+    // Check if the file exists
+    if (fs.existsSync(filePath)) {
+      // Delete the file from the filesystem
+      fs.unlinkSync(filePath);
+    } else {
+      throw new NotFoundException('File not found.');
+    }
+
+    // Remove the file from the user's uploadedFiles array in the database
+    await this.usersService.removeUploadedFile(userId, filename);
+
+    return { message: 'File deleted successfully' };
   }
 }

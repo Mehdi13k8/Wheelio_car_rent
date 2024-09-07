@@ -6,6 +6,7 @@ import Navbar from "./components/Navbar";
 import { useRouter } from "next/navigation";
 import Head from "next/head";
 import { LoginProvider } from "../context/LoginContext"; // Import the LoginProvider
+import axios from "axios";
 
 export default function RootLayout({
   children,
@@ -14,11 +15,41 @@ export default function RootLayout({
 }) {
   const router = useRouter();
 
-  useEffect(() => {
+  const verifyToken = async () => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login"); // Redirect to login if not authenticated
+
+    try {
+      const response = await axios.get("http://localhost:3001/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 200) {
+      } else {
+        localStorage.removeItem("token");
+        router.push("/login");
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Token verification failed", err);
+      localStorage.removeItem("token");
+      router.push("/login");
+      router.refresh();
     }
+  };
+
+  useEffect(() => {
+    verifyToken();
+  }, [router]);
+
+  // test each 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // if token is declared
+      if (localStorage.getItem("token")) verifyToken();
+    }, 30000);
+    return () => clearInterval(interval);
   }, [router]);
 
   return (

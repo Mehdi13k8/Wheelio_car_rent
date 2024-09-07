@@ -33,12 +33,12 @@ const Navbar = () => {
           >
             Profile
           </button>
-          <button
+          {/* <button
             onClick={() => router.push("/upload")}
             className="hover:bg-gray-700 px-3 py-2 rounded"
           >
             Upload File
-          </button>
+          </button> */}
         </div>
         <div>
           {isLoggedIn ? (
