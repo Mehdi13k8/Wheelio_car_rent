@@ -9,6 +9,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  // if token is in local storage, redirect to home page
+  const token = localStorage.getItem('token');
+  if (token) {
+    router.push('/');
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -22,6 +28,8 @@ export default function LoginPage() {
       const { access_token } = response.data;
       localStorage.setItem('token', access_token); // Store JWT in local storage
       router.push('/'); // Redirect to homepage or another protected page
+      router.refresh();
+      window.location.reload();
     } catch (error) {
       setError('Invalid email or password');
     }
