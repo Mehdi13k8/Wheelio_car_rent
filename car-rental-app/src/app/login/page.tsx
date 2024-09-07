@@ -27,7 +27,7 @@ export default function LoginPage() {
       // Assuming successful login, store token and redirect
       const { access_token } = response.data;
       localStorage.setItem('token', access_token); // Store JWT in local storage
-      router.push('/'); // Redirect to homepage or another protected page
+      router.push('/profile'); // Redirect to profile redirigez l'utilisateur vers une page de téléversement
       router.refresh();
       window.location.reload();
     } catch (error) {
