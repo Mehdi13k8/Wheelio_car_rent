@@ -21,12 +21,16 @@ const Navbar = () => {
     <nav className="bg-gray-800 text-white p-4">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex space-x-4">
-          <button
-            onClick={() => router.push("/")}
-            className="hover:bg-gray-700 px-3 py-2 rounded"
-          >
-            Home
-          </button>
+          {isLoggedIn && (
+            <>
+              <button
+                onClick={() => router.push("/")}
+                className="hover:bg-gray-700 px-3 py-2 rounded"
+              >
+                Home
+              </button>
+            </>
+          )}
           <button
             onClick={() => router.push("/profile")}
             className="hover:bg-gray-700 px-3 py-2 rounded"
