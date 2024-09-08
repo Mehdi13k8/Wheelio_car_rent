@@ -19,7 +19,6 @@ export class CarsService {
   async generateRandomCars(count: number): Promise<Car[]> {
     const cars: CarDocument[] = [];
 
-    return;
     for (let i = 0; i < count; i++) {
       let imgUrl = await axios.get(
         'https://random.imagecdn.app/v1/image?width=500&height=150&category=car',
